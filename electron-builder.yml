@@ -1,0 +1,46 @@
+# Installers: `npm run dist:win` (NSIS installer + portable), `dist:mac` (DMG), `dist:linux` (AppImage + deb).
+appId: com.wallora.app
+productName: Wallora
+copyright: Copyright © 2026 Wealth Hajoh
+directories:
+  output: release
+  buildResources: resources
+files:
+  - dist/**
+  - package.json
+extraResources:
+  - from: resources
+    to: .
+    filter: ["*.png"]
+asar: true
+win:
+  icon: resources/icon.png
+  target:
+    - target: nsis
+      arch: [x64, arm64]
+    - target: portable
+      arch: [x64]
+  artifactName: ${productName}-${version}-${arch}.${ext}
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  shortcutName: Wallora
+portable:
+  artifactName: ${productName}-${version}-portable.${ext}
+mac:
+  icon: resources/icon.png
+  category: public.app-category.utilities
+  target:
+    - target: dmg
+      arch: [universal]
+  extendInfo:
+    LSUIElement: false
+    NSAppleEventsUsageDescription: Wallora uses System Events to change your desktop picture.
+linux:
+  icon: resources/icon.png
+  category: Graphics
+  target: [AppImage, deb]
+  maintainer: Wealth Hajoh <wealthhajoh87@gmail.com>
+publish: null

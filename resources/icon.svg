@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+<defs>
+<linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2B0B5A"/><stop offset="0.55" stop-color="#C1449B"/><stop offset="1" stop-color="#FF9A5C"/></linearGradient>
+<radialGradient id="sun" cx="0.5" cy="0.5" r="0.5"><stop offset="0" stop-color="#FFF1C9"/><stop offset="1" stop-color="#FFD27A"/></radialGradient>
+<radialGradient id="halo" cx="0.5" cy="0.5" r="0.5"><stop offset="0.35" stop-color="#FFD27A" stop-opacity="0.75"/><stop offset="1" stop-color="#FFD27A" stop-opacity="0"/></radialGradient>
+<clipPath id="c"><rect x="64" y="64" width="896" height="896" rx="210"/></clipPath>
+</defs>
+<g clip-path="url(#c)">
+<rect x="64" y="64" width="896" height="896" fill="url(#sky)"/>
+<circle cx="600" cy="470" r="300" fill="url(#halo)"/>
+<circle cx="600" cy="470" r="118" fill="url(#sun)"/>
+<path d="M64 640 C 220 520, 360 560, 470 620 S 760 520, 960 600 L960 960 L64 960Z" fill="#5A1F6B"/>
+<path d="M64 740 C 260 640, 420 700, 560 740 S 820 660, 960 720 L960 960 L64 960Z" fill="#33124A"/>
+<path d="M64 840 C 280 780, 480 820, 640 850 S 860 800, 960 830 L960 960 L64 960Z" fill="#1A0A2B"/>
+</g>
+<rect x="64" y="64" width="896" height="896" rx="210" fill="none" stroke="rgba(255,255,255,0.18)" stroke-width="6"/>
+</svg>

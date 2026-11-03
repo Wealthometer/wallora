@@ -1,0 +1,9 @@
+{
+  "data": [
+    { "id": "n30n01", "url": "https://wallhaven.cc/w/n30n01", "purity": "sfw", "category": "general", "dimension_x": 3840, "dimension_y": 2160, "resolution": "3840x2160", "ratio": "1.78", "file_size": 120000, "file_type": "image/jpeg", "colors": ["#663399", "#000000"], "path": "https://w.wallhaven.cc/full/n3/wallhaven-n30n01.jpg", "thumbs": { "large": "https://th.wallhaven.cc/lg/n3/n30n01.jpg", "original": "https://th.wallhaven.cc/orig/n3/n30n01.jpg", "small": "https://th.wallhaven.cc/small/n3/n30n01.jpg" } },
+    { "id": "alp002", "url": "https://wallhaven.cc/w/alp002", "purity": "sfw", "category": "general", "dimension_x": 2560, "dimension_y": 1440, "resolution": "2560x1440", "ratio": "1.78", "file_size": 90000, "file_type": "image/jpeg", "colors": ["#66cccc"], "path": "https://w.wallhaven.cc/full/al/wallhaven-alp002.jpg", "thumbs": { "large": "https://th.wallhaven.cc/lg/al/alp002.jpg", "original": "https://th.wallhaven.cc/orig/al/alp002.jpg", "small": "https://th.wallhaven.cc/small/al/alp002.jpg" } },
+    { "id": "rr0003", "url": "https://wallhaven.cc/w/rr0003", "purity": "sfw", "category": "general", "dimension_x": 1920, "dimension_y": 1080, "resolution": "1920x1080", "ratio": "1.78", "file_size": 80000, "file_type": "image/jpeg", "colors": ["#cc3333"], "path": "https://w.wallhaven.cc/full/rr/wallhaven-rr0003.jpg", "thumbs": { "large": "https://th.wallhaven.cc/lg/rr/rr0003.jpg", "original": "https://th.wallhaven.cc/orig/rr/rr0003.jpg", "small": "https://th.wallhaven.cc/small/rr/rr0003.jpg" } },
+    { "id": "bad999", "url": "https://wallhaven.cc/w/bad999", "purity": "sketchy", "category": "people", "dimension_x": 1920, "dimension_y": 1080, "file_type": "image/jpeg", "colors": [], "path": "https://w.wallhaven.cc/full/ba/wallhaven-bad999.jpg", "thumbs": { "large": "https://th.wallhaven.cc/lg/ba/bad999.jpg" } }
+  ],
+  "meta": { "current_page": 1, "last_page": 1, "per_page": 24, "total": 4, "query": null, "seed": null }
+}
