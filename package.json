@@ -1,6 +1,6 @@
 {
   "name": "wallora",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Wallora: a wallpaper manager with playlists, schedules and multi-monitor support.",
   "main": "dist/main/index.cjs",
   "scripts": {
@@ -20,7 +20,10 @@
   "license": "MIT",
   "devDependencies": {
     "@eslint/js": "^9.39.5",
+    "@fontsource-variable/jetbrains-mono": "^5.3.0",
     "@fontsource-variable/manrope": "^5.3.0",
+    "@fontsource-variable/unbounded": "^5.3.0",
+    "@fontsource/bebas-neue": "^5.3.0",
     "@fontsource/instrument-serif": "^5.3.0",
     "@playwright/test": "^1.63.0",
     "@types/node": "^22.20.5",

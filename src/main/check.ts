@@ -77,7 +77,11 @@ export function settingsPatch(v: unknown): Partial<Settings> {
   if (p.displayPlaylists !== undefined) {
     out.displayPlaylists = Object.fromEntries(Object.entries(p.displayPlaylists as Record<string, unknown>).map(([k, val]) => [str(k, 64), str(val, 64)]));
   }
-  for (const k of ["launchAtLogin", "startHidden", "closeToTray", "pauseOnBattery", "shortcuts", "scheduleEnabled", "liveAccent"] as const) if (p[k] !== undefined) out[k] = bool(p[k]);
+  if (p.widgetLayer !== undefined) {
+    if (p.widgetLayer !== "desktop" && p.widgetLayer !== "top") throw new BadInput("Bad widget layer");
+    out.widgetLayer = p.widgetLayer;
+  }
+  for (const k of ["launchAtLogin", "startHidden", "closeToTray", "pauseOnBattery", "shortcuts", "scheduleEnabled", "liveAccent", "widgetsEnabled"] as const) if (p[k] !== undefined) out[k] = bool(p[k]);
   if (p.location !== undefined) out.location = location(p.location);
   if (p.wallhavenKey !== undefined) out.wallhavenKey = str(p.wallhavenKey, 100).trim();
   return out;

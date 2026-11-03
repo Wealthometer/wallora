@@ -3,7 +3,8 @@ import { watch, type FSWatcher } from "node:fs";
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
-import { API_METHODS, type Api, type Notice, type Progress, type Snapshot } from "../shared/api.ts";
+import { API_METHODS, OVERLAY_METHODS, type Api, type Notice, type Progress, type Snapshot, type WidgetPatch } from "../shared/api.ts";
+import type { WidgetKind } from "../shared/widgets.ts";
 import type { DisplayInfo } from "../shared/types.ts";
 import * as check from "./check.ts";
 import { openDb } from "./db.ts";
@@ -12,7 +13,8 @@ import { decode } from "./images.ts";
 import { Importer } from "./importer.ts";
 import { Library } from "./library.ts";
 import { bingDaily, defaultDownloadDir, download, fixturesDir, searchWallhaven } from "./online.ts";
-import { pickSetter } from "./setters/index.ts";
+import { pickSetter, WindowsSetter } from "./setters/index.ts";
+import { Widgets } from "./widgets.ts";
 
 // ── Paths and single instance ──────────────────────────────────────────────
 
@@ -34,6 +36,7 @@ let quitting = false;
 let lib: Library;
 let importer: Importer;
 let engine: Engine;
+let widgets: Widgets;
 const setter = pickSetter();
 
 function dataDir(...p: string[]): string {
@@ -84,6 +87,8 @@ function snapshot(): Snapshot {
     now: engine.nowPlaying(),
     desktop: { name: setter.name, perDisplay: setter.perDisplay, platform: process.platform },
     version: app.getVersion(),
+    widgets: widgets.list(),
+    editingWidgets: widgets.isEditing(),
   };
 }
 
@@ -315,8 +320,12 @@ const handlers: Handlers = {
   },
 
   updateSettings: (patch) => {
-    const next = lib.updateSettings(check.settingsPatch(patch));
+    const clean = check.settingsPatch(patch);
+    const before = lib.settings();
+    const next = lib.updateSettings(clean);
     applySettings();
+    if (clean.widgetLayer !== undefined && clean.widgetLayer !== before.widgetLayer) widgets.closeAll();
+    widgets.sync();
     send("snapshot", { settings: next });
     void engine.tick();
     return next;
@@ -332,13 +341,27 @@ const handlers: Handlers = {
     lib.clearHistory();
     libraryChanged();
   },
+
+  addWidget: (kind, display) => widgets.add(check.str(kind, 20) as WidgetKind, check.str(display, 64)),
+  updateWidget: (id, patch) => widgets.update(check.str(id, 64), (patch && typeof patch === "object" ? patch : {}) as WidgetPatch),
+  removeWidget: (id) => widgets.remove(check.str(id, 64)),
+  duplicateWidget: (id) => widgets.duplicate(check.str(id, 64)),
+  applyWidgetTheme: (theme) => widgets.theme(check.str(theme, 30)),
+  setEditingWidgets: (on) => widgets.setEditing(check.bool(on)),
+  weather: () => widgets.weather(),
+  stats: () => widgets.stats(),
+  // Answered per window in registerIpc (each widget window gets its own display).
+  overlayState: () => widgets.overlayState(String(screen.getPrimaryDisplay().id)),
 };
 
 function registerIpc() {
   ipcMain.handle("wallora", async (event, method: unknown, args: unknown) => {
-    // Only the app's own window may call in.
-    if (!win || event.sender !== win.webContents) throw new Error("Not allowed");
     if (typeof method !== "string" || !API_METHODS.includes(method as keyof Api)) throw new Error("Unknown call");
+    // The app's own window may make any call; widget windows only a few.
+    const overlayDisplay = widgets?.windowFor(event.sender) ?? null;
+    const fromApp = !!win && !win.isDestroyed() && event.sender === win.webContents;
+    if (!fromApp && !(overlayDisplay && OVERLAY_METHODS.includes(method as keyof Api))) throw new Error("Not allowed");
+    if (method === "overlayState" && overlayDisplay) return widgets.overlayState(overlayDisplay);
     const fn = handlers[method as keyof Api] as (...a: unknown[]) => unknown;
     try {
       return await fn(...(Array.isArray(args) ? args : []));
@@ -402,6 +425,13 @@ function createWindow(show: boolean) {
   });
   win.once("ready-to-show", () => {
     if (show) win?.show();
+  });
+  // Widget windows keep the app "open", so quitting on close has to be done here.
+  win.on("closed", () => {
+    if (!quitting && !lib.settings().closeToTray) {
+      quitting = true;
+      app.quit();
+    }
   });
   if (process.env.VITE_DEV_URL) void win.loadURL(process.env.VITE_DEV_URL);
   else void win.loadFile(join(__dirname, "..", "renderer", "index.html"));
@@ -496,8 +526,22 @@ app.whenReady().then(async () => {
     onChange: (np) => {
       send("snapshot", { now: np, history: lib.history(200) });
       trayMenu();
+      widgets?.pushState();
     },
     onError: (message) => notice({ tone: "error", message }),
+  });
+
+  widgets = new Widgets({
+    lib,
+    now: () => engine.nowPlaying(),
+    preload: join(__dirname, "..", "preload", "index.cjs"),
+    load: (w, displayId) => {
+      if (process.env.VITE_DEV_URL) void w.loadURL(`${process.env.VITE_DEV_URL}overlay.html?display=${encodeURIComponent(displayId)}`);
+      else void w.loadFile(join(__dirname, "..", "renderer", "overlay.html"), { query: { display: displayId } });
+    },
+    sendToBottom: setter instanceof WindowsSetter ? (hwnd) => setter.sendToBottom(hwnd) : undefined,
+    fixtures: fixturesDir() ?? null,
+    onChange: () => send("snapshot", { widgets: widgets.list(), editingWidgets: widgets.isEditing() }),
   });
 
   registerProtocol();
@@ -510,6 +554,8 @@ app.whenReady().then(async () => {
   const displaysChanged = () => {
     send("snapshot", { displays: displays() });
     void engine.tick();
+    widgets.sync();
+    widgets.restack();
   };
   screen.on("display-added", displaysChanged);
   screen.on("display-removed", displaysChanged);
@@ -521,6 +567,7 @@ app.whenReady().then(async () => {
   watchFolders();
   for (const f of lib.folders()) void scan(f.id);
   await engine.start();
+  widgets.sync();
 });
 
 app.on("activate", showWindow);
@@ -529,6 +576,7 @@ app.on("before-quit", () => {
 });
 app.on("will-quit", () => {
   globalShortcut.unregisterAll();
+  widgets?.closeAll();
   engine?.stop();
 });
 app.on("window-all-closed", () => {

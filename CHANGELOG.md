@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.1.0 — 2026-11-03
+
+- **Desktop widgets**, Rainmeter-style: clock (six faces), date, calendar, system stats, weather, note, countdown and now playing. Five fonts, auto colour that reads on the wallpaper, size, opacity, glass or solid panels, six one-click looks. Drag them on a live preview of each screen or on the desktop itself. They sit under your windows (or always on top), let clicks through, and remember their place per monitor.
+- **New look**: a floating glass sidebar and sheet over your blurred wallpaper, "Now showing" puts your desktop (widgets included) on a monitor, a quick "next" in the sidebar, a floating player dock, a scrolling Up next strip, a livelier welcome, and smoother transitions between views.
+- **Fixed on Windows**: "Windows didn't accept the wallpaper: #< CLIXML". Wallpaper changes now go through one long-running PowerShell helper that compiles its shim once, runs one change at a time, reports Windows' actual reason when something fails, and falls back to the single-picture API if the per-monitor one refuses. Changes are also much faster after the first.
+
 ## 1.0.0 — 2026-11-03
 
 First release.

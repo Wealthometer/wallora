@@ -23,8 +23,15 @@ export async function launch(data = mkdtempSync(join(tmpdir(), "wallora-e2e-")))
       WALLORA_DOWNLOADS: join(data, "Downloads"),
     },
   });
-  const page = await app.firstWindow();
-  await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0]!.setSize(1440, 900));
+  // The app window (desktop widget windows may open first after a restart).
+  await app.firstWindow();
+  let page: Page | undefined;
+  for (let i = 0; i < 100 && !page; i++) {
+    page = app.windows().find((w) => !w.url().includes("overlay.html"));
+    if (!page) await new Promise((r) => setTimeout(r, 100));
+  }
+  if (!page) throw new Error("The Wallora window didn't open");
+  await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().find((w) => w.getTitle() !== "Wallora widgets")?.setSize(1440, 900));
   await page.waitForSelector("[data-testid=player]");
   return {
     app,

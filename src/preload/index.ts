@@ -5,7 +5,7 @@ import { API_METHODS, type Bridge } from "../shared/api.ts";
 const bridge: Record<string, unknown> = {};
 for (const m of API_METHODS) bridge[m] = (...args: unknown[]) => ipcRenderer.invoke("wallora", m, args);
 
-bridge.on = (event: "snapshot" | "progress" | "notice", cb: (payload: unknown) => void) => {
+bridge.on = (event: "snapshot" | "progress" | "notice" | "overlay" | "stats", cb: (payload: unknown) => void) => {
   const channel = `wallora:${event}`;
   const listener = (_e: IpcRendererEvent, payload: unknown) => cb(payload);
   ipcRenderer.on(channel, listener);

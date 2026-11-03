@@ -20,6 +20,7 @@ import {
   TriangleAlert,
   Layers,
   CalendarDays,
+  LayoutDashboard,
 } from "lucide-react";
 import { inkOn } from "../shared/color.ts";
 import { api, go, openDetail, run, thumb, useStore, type View } from "./store.ts";
@@ -35,6 +36,7 @@ import { NowView } from "./views/Now.tsx";
 import { NewPlaylist, PlaylistView } from "./views/Playlist.tsx";
 import { ScheduleView } from "./views/Schedule.tsx";
 import { SettingsView } from "./views/Settings.tsx";
+import { WidgetsView } from "./views/Widgets.tsx";
 
 export function App() {
   const snap = useStore((s) => s.snap);
@@ -52,6 +54,12 @@ export function App() {
     document.documentElement.style.setProperty("--accent-ink", inkOn(accent));
   }, [current, snap?.settings.liveAccent]);
 
+  // Each view starts at the top (the scrolling sheet is shared by all of them).
+  const key = viewKey(view);
+  useEffect(() => {
+    document.querySelector(".main")?.scrollTo({ top: 0 });
+  }, [key]);
+
   if (!snap) return null;
   return (
     <>
@@ -61,7 +69,9 @@ export function App() {
       <div className={`app ${snap.desktop.platform === "darwin" ? "mac" : ""}`}>
         <Sidebar view={view} />
         <main className={`main${view.name === "now" || view.name === "playlist" ? " no-pad" : ""}`} data-testid={`view-${view.name}`}>
-          <Router view={view} />
+          <div className="view" key={key}>
+            <Router view={view} />
+          </div>
         </main>
       </div>
       <Player />
@@ -70,6 +80,10 @@ export function App() {
       <Asks />
     </>
   );
+}
+
+function viewKey(v: View): string {
+  return v.name === "playlist" || v.name === "collection" ? `${v.name}:${v.id}` : v.name === "library" ? `library:${v.filter ?? ""}` : v.name;
 }
 
 function Router({ view }: { view: View }) {
@@ -94,6 +108,8 @@ function Router({ view }: { view: View }) {
       return <DisplaysView />;
     case "settings":
       return <SettingsView />;
+    case "widgets":
+      return <WidgetsView />;
   }
 }
 
@@ -136,6 +152,7 @@ function Sidebar({ view }: { view: View }) {
         <div className="brand-mark" />
         <div className="brand-name">Wallora</div>
       </div>
+      <MiniNow />
       <NavItem icon={Sparkles} label="Now showing" on={is("now")} onClick={() => go({ name: "now" })} testId="nav-now" />
       <NavItem icon={Images} label="Library" count={snap.wallpapers.length} on={is("library", (v) => v.name === "library" && !v.filter)} onClick={() => go({ name: "library" })} testId="nav-library" />
       <NavItem icon={Heart} label="Favourites" count={favs} on={is("library", (v) => v.name === "library" && v.filter === "favourites")} onClick={() => go({ name: "library", filter: "favourites" })} testId="nav-favourites" />
@@ -161,6 +178,8 @@ function Sidebar({ view }: { view: View }) {
       ))}
       {!snap.collections.length ? <div className="small" style={{ padding: "2px 12px" }}>Right-click wallpapers to group them.</div> : null}
 
+      <div className="nav-label">Your desktop</div>
+      <NavItem icon={LayoutDashboard} label="Widgets" count={snap.widgets.length || undefined} on={is("widgets")} onClick={() => go({ name: "widgets" })} testId="nav-widgets" />
       <div className="nav-label">Set up</div>
       <NavItem icon={CalendarClock} label="Schedule" on={is("schedule")} onClick={() => go({ name: "schedule" })} testId="nav-schedule" />
       <NavItem icon={Monitor} label="Displays" count={snap.displays.length} on={is("displays")} onClick={() => go({ name: "displays" })} testId="nav-displays" />
@@ -168,6 +187,29 @@ function Sidebar({ view }: { view: View }) {
       <NavItem icon={Cog} label="Settings" on={is("settings")} onClick={() => go({ name: "settings" })} testId="nav-settings" />
       {newPlaylist ? <NewPlaylist onClose={() => setNewPlaylist(false)} /> : null}
     </nav>
+  );
+}
+
+/** The current wallpaper at the top of the sidebar: a glance at what's on, and a quick "next". */
+function MiniNow() {
+  const snap = useStore((s) => s.snap)!;
+  const byId = useStore((s) => s.byId);
+  const primary = snap.displays.find((d) => d.primary) ?? snap.displays[0];
+  const cur = primary ? byId.get(snap.now.current[primary.id] ?? "") : undefined;
+  if (!cur) return null;
+  return (
+    <div className="mini-now">
+      <button className="mini-now-art" onClick={() => go({ name: "now" })} aria-label="Now showing">
+        <img key={cur.id} src={thumb(cur.id)} alt="" />
+      </button>
+      <div className="mini-now-body">
+        <div className="mini-now-label">On desktop</div>
+        <div className="mini-now-title">{cur.title}</div>
+      </div>
+      <button className="mini-now-next" aria-label="Next wallpaper" onClick={() => void run(api.next())} data-testid="mini-next">
+        <SkipForward size={15} fill="currentColor" />
+      </button>
+    </div>
   );
 }
 

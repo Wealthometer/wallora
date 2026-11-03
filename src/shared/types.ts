@@ -100,6 +100,10 @@ export type Settings = {
   wallhavenKey: string;
   /** The interface takes its accent colour from the current wallpaper. */
   liveAccent: boolean;
+  /** Show desktop widgets. */
+  widgetsEnabled: boolean;
+  /** "desktop": under every window, like part of the wallpaper. "top": always in front. */
+  widgetLayer: "desktop" | "top";
 };
 
 export type HistoryEntry = { id: number; wallpaperId: string; displayId: string; at: number; playlistId: string | null };

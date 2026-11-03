@@ -1,0 +1,328 @@
+/* Desktop widgets: shared by the widget windows on the desktop and the previews in the app. */
+
+.w-layer {
+  position: relative;
+  overflow: hidden;
+  user-select: none;
+}
+.w-layer.editing {
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+  background-size: 48px 48px;
+}
+
+.widget {
+  position: absolute;
+  line-height: 1.1;
+  white-space: nowrap;
+  font-feature-settings: "tnum" 1;
+  transition: opacity 0.3s;
+}
+.widget.shadowed {
+  text-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.35),
+    0 6px 24px rgba(0, 0, 0, 0.35);
+}
+.widget.shadowed svg {
+  filter: drop-shadow(0 4px 14px rgba(0, 0, 0, 0.35));
+}
+.widget.panel-glass {
+  padding: 0.9em 1.1em;
+  border-radius: 1.1em;
+  background: color-mix(in srgb, rgba(16, 16, 24, 0.42) 100%, transparent);
+  backdrop-filter: blur(18px) saturate(1.4);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.25);
+}
+.widget.panel-solid {
+  padding: 0.9em 1.1em;
+  border-radius: 0.7em;
+  background: rgba(10, 10, 14, 0.82);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+.w-layer.editing .widget {
+  cursor: grab;
+  outline: 1.5px dashed color-mix(in srgb, var(--ink) 45%, transparent);
+  outline-offset: 8px;
+  border-radius: 6px;
+}
+.w-layer.editing .widget:active {
+  cursor: grabbing;
+}
+.w-layer.editing .widget.selected {
+  outline: 2px solid var(--accent-w);
+  outline-offset: 8px;
+}
+
+/* Type scale (em, so the widget's size setting scales everything) */
+.w-big {
+  font-size: 5.2em;
+  line-height: 0.95;
+  letter-spacing: -0.02em;
+}
+.w-mid {
+  font-size: 1.6em;
+  line-height: 1.15;
+}
+.w-mid.strong {
+  font-weight: 700;
+}
+.w-sub {
+  font-size: 1em;
+  opacity: 0.82;
+  margin-top: 0.45em;
+}
+.w-caps {
+  font-size: 0.82em;
+  letter-spacing: 0.32em;
+  text-transform: uppercase;
+  font-weight: 700;
+}
+.w-dim {
+  opacity: 0.62;
+}
+.w-accent {
+  color: var(--accent-w);
+}
+.w-greet {
+  font-size: 1.15em;
+  opacity: 0.85;
+  margin-bottom: 0.2em;
+}
+.w-num {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Clocks */
+.w-clock.classic .w-big {
+  font-size: 6.4em;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.08em;
+}
+.w-after {
+  display: inline-flex;
+  flex-direction: column;
+  font-size: 0.24em;
+  line-height: 1.2;
+  margin-top: 0.5em;
+  margin-left: 0.15em;
+  letter-spacing: 0.04em;
+}
+.w-clock.stacked .w-big {
+  font-size: 6em;
+  line-height: 0.84;
+  font-weight: 800;
+}
+.w-clock.words .w-words {
+  font-size: 2.6em;
+  line-height: 1.05;
+  white-space: normal;
+  max-width: 7.5em;
+}
+.w-clock.words .w-words b {
+  font-weight: inherit;
+  color: var(--accent-w);
+}
+.w-dial {
+  width: 11em;
+  height: 11em;
+  display: block;
+}
+.w-face {
+  fill: color-mix(in srgb, var(--ink) 6%, transparent);
+  stroke: color-mix(in srgb, var(--ink) 35%, transparent);
+  stroke-width: 2;
+}
+.w-tick {
+  stroke: color-mix(in srgb, var(--ink) 40%, transparent);
+  stroke-width: 1.5;
+  stroke-linecap: round;
+}
+.w-tick.big {
+  stroke: var(--ink);
+  stroke-width: 3;
+}
+.w-hand {
+  stroke: var(--ink);
+  stroke-linecap: round;
+}
+.w-hand.hour {
+  stroke-width: 7;
+}
+.w-hand.min {
+  stroke-width: 4.5;
+}
+.w-hand.sec {
+  stroke-width: 2;
+}
+.w-clock.neon .w-big {
+  font-size: 5.6em;
+  color: #fff;
+  text-shadow:
+    0 0 0.04em #fff,
+    0 0 0.12em var(--glow),
+    0 0 0.3em var(--glow),
+    0 0 0.6em var(--glow);
+}
+.w-clock.neon .w-sub {
+  color: var(--glow);
+  text-shadow: 0 0 0.6em var(--glow);
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  font-size: 0.85em;
+}
+.w-blink {
+  animation: w-blink 2s steps(1) infinite;
+}
+.w-sec {
+  font-size: 0.32em;
+  margin-left: 0.2em;
+  opacity: 0.8;
+}
+@keyframes w-blink {
+  50% {
+    opacity: 0.25;
+  }
+}
+.w-clock.minimal {
+  font-size: 1em;
+}
+
+/* Date */
+.w-date.weekday .w-big {
+  font-size: 7em;
+  font-weight: 800;
+}
+
+/* Calendar */
+.w-cal {
+  font-size: 1em;
+}
+.w-cal-head {
+  font-size: 1.25em;
+  margin-bottom: 0.6em;
+}
+.w-cal-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 2.1em);
+  gap: 0.2em;
+  text-align: center;
+  font-size: 0.95em;
+}
+.w-cal-grid span {
+  height: 2.1em;
+  line-height: 2.1em;
+  border-radius: 50%;
+}
+.w-cal-grid .today {
+  font-weight: 800;
+  text-shadow: none;
+}
+
+/* Stats */
+.w-stats {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75em;
+  min-width: 15em;
+}
+.w-meter-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 1.5em;
+  font-size: 0.95em;
+}
+.w-track {
+  height: 0.32em;
+  border-radius: 1em;
+  background: color-mix(in srgb, var(--ink) 16%, transparent);
+  margin-top: 0.35em;
+  overflow: hidden;
+}
+.w-track i {
+  display: block;
+  height: 100%;
+  border-radius: 1em;
+  transition: width 1.2s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* Weather */
+.w-weather-now {
+  display: flex;
+  align-items: center;
+  gap: 0.25em;
+}
+.w-weather-now .w-big {
+  font-size: 4.6em;
+}
+.w-wicon {
+  width: 3.4em;
+  height: 3.4em;
+  stroke-width: 1.6;
+}
+
+/* Note, countdown, now playing */
+.w-note {
+  font-size: 1.8em;
+  line-height: 1.25;
+  white-space: normal;
+  max-width: 14em;
+}
+.w-count .w-big {
+  font-size: 6em;
+  font-weight: 800;
+}
+.w-dots {
+  display: flex;
+  gap: 0.35em;
+  margin-top: 0.6em;
+}
+.w-dots i {
+  width: 1.1em;
+  height: 1.1em;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.4);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .w-blink {
+    animation: none;
+  }
+}
+
+/* The widget window itself */
+body.overlay {
+  margin: 0;
+  background: transparent;
+  overflow: hidden;
+  font-family: "Manrope Variable", "Segoe UI", sans-serif;
+}
+.ov-bar {
+  position: fixed;
+  top: 18px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 8px 8px 8px 18px;
+  border-radius: 999px;
+  background: rgba(14, 14, 20, 0.86);
+  backdrop-filter: blur(20px);
+  color: #f4f1ff;
+  font: 600 14px "Manrope Variable", sans-serif;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  z-index: 10;
+}
+.ov-bar button {
+  border: 0;
+  border-radius: 999px;
+  padding: 8px 18px;
+  font: 800 14px "Manrope Variable", sans-serif;
+  background: #f4f1ff;
+  color: #0d0d12;
+  cursor: pointer;
+}

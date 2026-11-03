@@ -20,6 +20,7 @@ export type View =
   | { name: "folders" }
   | { name: "history" }
   | { name: "displays" }
+  | { name: "widgets" }
   | { name: "settings" };
 
 type Toast = Notice & { id: number };

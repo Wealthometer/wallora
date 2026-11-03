@@ -33,6 +33,26 @@ namespace Wallora {
     void Enable([MarshalAs(UnmanagedType.Bool)] bool enable);
   }
   [ComImport, Guid("C2CF3110-460E-4FC1-B9D0-8A1C0C9CC4BD")] public class DesktopWallpaperCoClass { }
+  public static class Native {
+    [DllImport("user32.dll", SetLastError = true)] public static extern bool SetWindowPos(IntPtr hWnd, IntPtr after, int x, int y, int cx, int cy, uint flags);
+    [DllImport("user32.dll", CharSet = CharSet.Unicode, SetLastError = true)] public static extern bool SystemParametersInfo(uint action, uint param, string value, uint flags);
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)] static extern IntPtr FindWindow(string cls, string name);
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)] static extern IntPtr FindWindowEx(IntPtr parent, IntPtr after, string cls, string name);
+    [DllImport("user32.dll")] static extern IntPtr GetWindow(IntPtr h, uint cmd);
+    delegate bool EnumProc(IntPtr h, IntPtr l);
+    [DllImport("user32.dll")] static extern bool EnumWindows(EnumProc cb, IntPtr l);
+    // Puts a window directly above the desktop (the window holding the icons): under every
+    // app window, but still visible. Pushing it to the very bottom could hide it behind the desktop.
+    public static bool PinAboveDesktop(IntPtr h) {
+      IntPtr host = IntPtr.Zero;
+      EnumWindows((w, l) => { if (FindWindowEx(w, IntPtr.Zero, "SHELLDLL_DefView", null) != IntPtr.Zero) { host = w; return false; } return true; }, IntPtr.Zero);
+      if (host == IntPtr.Zero) host = FindWindow("Progman", null);
+      if (host == IntPtr.Zero) return SetWindowPos(h, (IntPtr)1, 0, 0, 0, 0, 0x0013);
+      IntPtr above = GetWindow(host, 3);
+      if (above == h) return true;
+      return SetWindowPos(h, above == IntPtr.Zero ? IntPtr.Zero : above, 0, 0, 0, 0, 0x0013);
+    }
+  }
   public static class Desktop {
     public static IDesktopWallpaper Get() { return (IDesktopWallpaper)new DesktopWallpaperCoClass(); }
   }
@@ -67,6 +87,128 @@ export function windowsSetScript(assignments: { monitor: string | null; path: st
   for (const a of assignments) lines.push(`$w.SetWallpaper(${a.monitor === null ? "$null" : psQuote(a.monitor)}, ${psQuote(a.path)})`);
   lines.push("Write-Output 'ok'");
   return lines.join("\n");
+}
+
+/** Registry values for the classic single-picture API, used if the per-monitor one fails. */
+export const WINDOWS_STYLE: Record<Fit, [string, string]> = { fill: ["10", "0"], fit: ["6", "0"], stretch: ["2", "0"], center: ["0", "0"], tile: ["0", "1"], span: ["22", "0"] };
+
+export const HOST_MARK = "@@WALLORA ";
+
+/**
+ * A long-lived PowerShell helper. It compiles the C# shim once, then answers one JSON command per
+ * line on stdin with one marked JSON line on stdout. Every command catches its own errors, so a
+ * failure comes back as a readable message instead of PowerShell's CLIXML error stream, and
+ * commands never overlap (two PowerShells compiling the shim at once can fail).
+ *
+ * Commands: {id, op:"ping"} · {id, op:"list"} · {id, op:"set", fit, items:[{monitor, path}]} ·
+ * {id, op:"bottom", hwnd}.
+ */
+export function windowsHostScript(): string {
+  const styles = Object.entries(WINDOWS_STYLE)
+    .map(([k, [st, tile]]) => `'${k}' = @('${st}', '${tile}')`)
+    .join("; ");
+  const positions = Object.entries(WINDOWS_POSITION)
+    .map(([k, v]) => `'${k}' = ${v}`)
+    .join("; ");
+  return `$ErrorActionPreference = 'Stop'
+$ProgressPreference = 'SilentlyContinue'
+[Console]::InputEncoding = [Text.Encoding]::UTF8
+[Console]::OutputEncoding = [Text.Encoding]::UTF8
+function Reply($obj) { [Console]::Out.WriteLine('${HOST_MARK}' + ($obj | ConvertTo-Json -Compress -Depth 6)); [Console]::Out.Flush() }
+try { if (-not ('Wallora.Desktop' -as [type])) { Add-Type -TypeDefinition @'
+${CSHARP}
+'@ } } catch { Reply @{ id = 0; ok = $false; error = 'Could not prepare the Windows wallpaper helper: ' + $_.Exception.Message }; exit 1 }
+$styles = @{ ${styles} }
+$positions = @{ ${positions} }
+function Set-Classic($path, $fit) {
+  $st = $styles[$fit]
+  Set-ItemProperty -Path 'HKCU:\\Control Panel\\Desktop' -Name WallpaperStyle -Value $st[0]
+  Set-ItemProperty -Path 'HKCU:\\Control Panel\\Desktop' -Name TileWallpaper -Value $st[1]
+  if (-not [Wallora.Native]::SystemParametersInfo(0x14, 0, $path, 3)) { throw "SystemParametersInfo failed ($([Runtime.InteropServices.Marshal]::GetLastWin32Error()))" }
+}
+Reply @{ id = 0; ok = $true; data = 'ready' }
+while ($true) {
+  $line = [Console]::In.ReadLine()
+  if ($null -eq $line) { break }
+  if ($line.Trim() -eq '') { continue }
+  $id = 0
+  try {
+    $cmd = $line | ConvertFrom-Json
+    $id = $cmd.id
+    switch ($cmd.op) {
+      'ping' { Reply @{ id = $id; ok = $true; data = 'pong' } }
+      'list' {
+        $w = [Wallora.Desktop]::Get()
+        $out = @()
+        for ($i = 0; $i -lt $w.GetMonitorDevicePathCount(); $i++) {
+          $mid = $w.GetMonitorDevicePathAt($i)
+          try { $r = $w.GetMonitorRECT($mid); $out += @{ id = $mid; left = $r.Left; top = $r.Top; right = $r.Right; bottom = $r.Bottom } } catch { }
+        }
+        Reply @{ id = $id; ok = $true; data = @($out) }
+      }
+      'set' {
+        $notes = @()
+        $done = 0
+        $w = $null
+        try { $w = [Wallora.Desktop]::Get(); $w.SetPosition($positions[$cmd.fit]) } catch { $notes += 'per-monitor API unavailable: ' + $_.Exception.Message; $w = $null }
+        foreach ($it in @($cmd.items)) {
+          $ok = $false
+          if ($null -ne $w) {
+            try { $w.SetWallpaper($it.monitor, $it.path); $ok = $true } catch { $notes += 'monitor ' + $it.monitor + ': ' + $_.Exception.Message }
+            if (-not $ok -and $null -ne $it.monitor) { try { $w.SetWallpaper($null, $it.path); $ok = $true } catch { } }
+          }
+          if (-not $ok) { Set-Classic $it.path $cmd.fit; $ok = $true; $notes += 'used the single-picture fallback' }
+          if ($ok) { $done++ }
+        }
+        Reply @{ id = $id; ok = $true; data = @{ done = $done; notes = @($notes) } }
+      }
+      'bottom' {
+        $h = [IntPtr][long]$cmd.hwnd
+        [void][Wallora.Native]::PinAboveDesktop($h)
+        Reply @{ id = $id; ok = $true; data = $true }
+      }
+      default { Reply @{ id = $id; ok = $false; error = 'unknown command' } }
+    }
+  } catch {
+    Reply @{ id = $id; ok = $false; error = $_.Exception.Message }
+  }
+}`;
+}
+
+export type HostReply = { id: number; ok: boolean; data?: unknown; error?: string };
+
+/** Reads one helper line; anything else PowerShell prints is ignored. */
+export function parseHostLine(line: string): HostReply | null {
+  const i = line.indexOf(HOST_MARK);
+  if (i < 0) return null;
+  try {
+    const r = JSON.parse(line.slice(i + HOST_MARK.length)) as HostReply;
+    return typeof r.id === "number" && typeof r.ok === "boolean" ? r : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * PowerShell writes errors to stderr as CLIXML ("#< CLIXML" then XML) when its output is
+ * redirected. Pulls out the human-readable error lines.
+ */
+export function decodeClixml(stderr: string): string {
+  if (!stderr.includes("#< CLIXML")) return stderr.trim();
+  const out: string[] = [];
+  const re = /<S S="Error">([\s\S]*?)<\/S>/g;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(stderr))) {
+    const text = m[1]!
+      .replace(/_x([0-9A-F]{4})_/gi, (_s, h: string) => String.fromCharCode(parseInt(h, 16)))
+      .replace(/&lt;/g, "<")
+      .replace(/&gt;/g, ">")
+      .replace(/&quot;/g, '"')
+      .replace(/&apos;/g, "'")
+      .replace(/&amp;/g, "&");
+    out.push(text);
+  }
+  return out.join("").replace(/\s+/g, " ").trim() || "PowerShell reported an error without details";
 }
 
 /** PowerShell's -EncodedCommand takes base64 of UTF-16LE, which sidesteps every quoting problem. */

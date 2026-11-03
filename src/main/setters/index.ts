@@ -6,33 +6,24 @@ import { screen } from "electron";
 import { matchMonitors, type MonitorRect } from "../../shared/displays.ts";
 import type { DisplayInfo, Settings } from "../../shared/types.ts";
 import type { Assignment, Setter } from "../engine.ts";
-import { detectLinuxDesktop, encodePowerShell, gnomeCommands, kdeScript, macScript, windowsListScript, windowsSetScript } from "./scripts.ts";
+import { detectLinuxDesktop, gnomeCommands, kdeScript, macScript } from "./scripts.ts";
+import { WinHost } from "./winhost.ts";
 
 const run = promisify(execFile);
 const OPTS = { windowsHide: true, timeout: 30_000, maxBuffer: 1024 * 1024 };
 
-/** Windows 8+: IDesktopWallpaper through PowerShell, one picture per monitor. */
+/** Windows 8+: IDesktopWallpaper through a long-lived PowerShell helper, one picture per monitor. */
 class WindowsSetter implements Setter {
   name = "Windows";
   perDisplay = true;
+  readonly host = new WinHost();
   private monitors: MonitorRect[] | null = null;
   private layout = "";
-
-  private async powershell(script: string): Promise<string> {
-    try {
-      const { stdout } = await run("powershell.exe", ["-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-EncodedCommand", encodePowerShell(script)], OPTS);
-      return stdout.trim();
-    } catch (e) {
-      const msg = (e as { stderr?: string }).stderr?.split("\n").find((l) => l.trim()) ?? (e as Error).message;
-      throw new Error(`Windows didn't accept the wallpaper: ${msg.trim().slice(0, 200)}`);
-    }
-  }
 
   private async monitorMap(displays: DisplayInfo[]): Promise<Map<string, string>> {
     const layout = JSON.stringify(displays.map((d) => [d.id, d.bounds]));
     if (!this.monitors || layout !== this.layout) {
-      const out = await this.powershell(windowsListScript());
-      this.monitors = JSON.parse(out || "[]") as MonitorRect[];
+      this.monitors = await this.host.call<MonitorRect[]>("list");
       this.layout = layout;
     }
     return matchMonitors(displays, this.monitors, (d) => screen.dipToScreenRect(null, d.bounds));
@@ -40,9 +31,26 @@ class WindowsSetter implements Setter {
 
   async set(assignments: Assignment[], settings: Settings, displays: DisplayInfo[]): Promise<void> {
     const perMonitor = assignments.some((a) => a.display);
-    const map = perMonitor ? await this.monitorMap(displays) : new Map<string, string>();
-    const list = assignments.map((a) => ({ monitor: a.display ? (map.get(a.display.id) ?? null) : null, path: a.path }));
-    await this.powershell(windowsSetScript(list, settings.fit));
+    let map = new Map<string, string>();
+    if (perMonitor) {
+      try {
+        map = await this.monitorMap(displays);
+      } catch {
+        // Can't tell monitors apart: every picture goes to all of them (the last one wins).
+      }
+    }
+    const items = assignments.map((a) => ({ monitor: a.display ? (map.get(a.display.id) ?? null) : null, path: a.path }));
+    try {
+      await this.host.call("set", { fit: settings.fit, items });
+    } catch (e) {
+      this.monitors = null;
+      throw new Error(`Windows didn't accept the wallpaper: ${(e as Error).message.slice(0, 220)}`);
+    }
+  }
+
+  /** Pins a widget window just above the desktop, under every app window (Rainmeter's "on desktop"). */
+  async sendToBottom(hwnd: string): Promise<void> {
+    await this.host.call("bottom", { hwnd });
   }
 }
 
@@ -122,6 +130,8 @@ class FakeSetter implements Setter {
     await writeFile(this.file, JSON.stringify({ at: Date.now(), fit: settings.fit, assignments: assignments.map((a) => ({ display: a.display?.id ?? null, path: a.path })) }));
   }
 }
+
+export { WindowsSetter };
 
 export function pickSetter(env: NodeJS.ProcessEnv = process.env): Setter {
   if (env.WALLORA_FAKE_DESKTOP) return new FakeSetter(env.WALLORA_FAKE_DESKTOP);

@@ -51,6 +51,8 @@ export const DEFAULT_SETTINGS: Settings = {
   downloadFolder: "",
   wallhavenKey: "",
   liveAccent: true,
+  widgetsEnabled: true,
+  widgetLayer: "desktop",
 };
 
 export class Library {
